@@ -25,6 +25,15 @@
 typedef int Py_ssize_t;
 #endif
 
+#if (PY_VERSION_HEX >= 0x03000000)
+#define PY3
+#define PyString_FromStringAndSize PyBytes_FromStringAndSize
+#define PyString_Check             PyBytes_Check
+#define PyString_AS_STRING         PyBytes_AS_STRING
+#define PyInt_Check                PyLong_Check
+#define PyInt_AS_LONG              PyLong_AS_LONG
+#endif
+
 #if defined(__MINGW32_VERSION) || defined(__APPLE__)
 size_t rep_strnlen(char *text, size_t maxlen);
 size_t rep_strnlen(char *text, size_t maxlen)
@@ -248,34 +257,53 @@ static PyMethodDef py_objects_methods[] = {
 	{ NULL, NULL, 0, NULL }
 };
 
+#ifdef PY3
+#define RETURN_ERR return NULL
+static struct PyModuleDef objects_module_def = {
+    PyModuleDef_HEAD_INIT,
+    "_objects",
+    NULL,
+    -1,
+    py_objects_methods,
+};
+
+PyMODINIT_FUNC
+PyInit_objects(void)
+#else
+#define RETURN_ERR return
 PyMODINIT_FUNC
 init_objects(void)
+#endif
 {
 	PyObject *m, *objects_mod, *errors_mod;
 
+#ifdef PY3
+	m = PyModule_Create(&objects_module_def);
+#else
 	m = Py_InitModule3("_objects", py_objects_methods, NULL);
+#endif
 	if (m == NULL)
-		return;
+		RETURN_ERR;
 
 
 	errors_mod = PyImport_ImportModule("dulwich.errors");
 	if (errors_mod == NULL)
-		return;
+		RETURN_ERR;
 
 	object_format_exception_cls = PyObject_GetAttrString(
 		errors_mod, "ObjectFormatException");
 	Py_DECREF(errors_mod);
 	if (object_format_exception_cls == NULL)
-		return;
+		RETURN_ERR;
 
 	/* This is a circular import but should be safe since this module is
 	 * imported at at the very bottom of objects.py. */
 	objects_mod = PyImport_ImportModule("dulwich.objects");
 	if (objects_mod == NULL)
-		return;
+		RETURN_ERR;
 
 	tree_entry_cls = PyObject_GetAttrString(objects_mod, "TreeEntry");
 	Py_DECREF(objects_mod);
 	if (tree_entry_cls == NULL)
-		return;
+		RETURN_ERR;
 }
