@@ -29,6 +29,8 @@ To find an object you look in all of the index files 'til you find a
 match for the object name. You then use the pointer got from this as
 a pointer in to the corresponding packfile.
 """
+import sys
+PY3 = sys.version_info[0] == 3
 
 try:
     from collections import defaultdict
@@ -36,18 +38,27 @@ except ImportError:
     from dulwich._compat import defaultdict
 
 import binascii
-from cStringIO import (
-    StringIO,
-    )
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import BytesIO as StringIO
+
 from collections import (
     deque,
     )
 import difflib
-from itertools import (
-    chain,
-    imap,
-    izip,
-    )
+
+if PY3:
+    from itertools import chain
+    imap = map
+    izip = zip
+else:
+    from itertools import (
+        chain,
+        imap,
+        izip,
+        )
 try:
     import mmap
 except ImportError:
@@ -630,7 +641,7 @@ class PackIndex2(FilePackIndex):
         offset = self._pack_offset_table_offset + i * 4
         offset = unpack_from('>L', self._contents, offset)[0]
         if offset & (2**31):
-            offset = self._pack_offset_largetable_offset + (offset&(2**31-1)) * 8L
+            offset = self._pack_offset_largetable_offset + (offset&(2**31-1)) * 8
             offset = unpack_from('>Q', self._contents, offset)[0]
         return offset
 
@@ -725,8 +736,9 @@ def unpack_object(read_all, read_some=None, compute_crc32=False,
     return unpacked, unused
 
 
-def _compute_object_size((num, obj)):
+def _compute_object_size(arg):
     """Compute the size of a unresolved object for use with LRUSizeCache."""
+    num, obj = arg
     if num in DELTA_TYPES:
         return chunks_length(obj[1])
     return chunks_length(obj)

@@ -30,6 +30,8 @@ typedef int Py_ssize_t;
 #define PyString_FromStringAndSize PyBytes_FromStringAndSize
 #define PyString_Check             PyBytes_Check
 #define PyString_AS_STRING         PyBytes_AS_STRING
+#define PyString_AsString          PyBytes_AsString
+#define PyString_Size              PyBytes_Size
 #define PyInt_Check                PyLong_Check
 #define PyInt_AS_LONG              PyLong_AS_LONG
 #endif
@@ -306,4 +308,7 @@ init_objects(void)
 	Py_DECREF(objects_mod);
 	if (tree_entry_cls == NULL)
 		RETURN_ERR;
+#ifdef PY3
+	return m;
+#endif
 }

@@ -32,6 +32,21 @@ typedef int Py_ssize_t;
 #define Py_SIZE(ob)             (((PyVarObject*)(ob))->ob_size)
 #endif
 
+#if (PY_VERSION_HEX >= 0x03000000)
+#define PY3
+#define PyString_FromStringAndSize PyBytes_FromStringAndSize
+#define PyString_Check             PyBytes_Check
+#define PyString_AS_STRING         PyBytes_AS_STRING
+#define PyString_AsString          PyBytes_AsString
+#define PyString_Size              PyBytes_Size
+#define PyString_GET_SIZE          PyBytes_GET_SIZE
+#define PyString_AsStringAndSize   PyBytes_AsStringAndSize
+#define PyInt_Check                PyLong_Check
+#define PyInt_AS_LONG              PyLong_AS_LONG
+#define PyInt_AsLong               PyLong_AsLong
+#define PyInt_FromLong             PyLong_FromLong
+#endif
+
 static PyObject *tree_entry_cls = NULL, *null_entry = NULL,
 	*defaultdict_cls = NULL, *int_cls = NULL;
 static int block_size;
@@ -395,12 +410,31 @@ static PyMethodDef py_diff_tree_methods[] = {
 	{ NULL, NULL, 0, NULL }
 };
 
+#ifdef PY3
+#define RETURN_ERR return NULL
+static struct PyModuleDef module_def = {
+    PyModuleDef_HEAD_INIT,
+    "_diff_tree",
+    NULL,
+    -1,
+    py_diff_tree_methods,
+};
+
 PyMODINIT_FUNC
-init_diff_tree(void)
+PyInit_objects(void)
+#else
+#define RETURN_ERR return
+PyMODINIT_FUNC
+init_objects(void)
+#endif
 {
 	PyObject *m, *objects_mod = NULL, *diff_tree_mod = NULL;
         PyObject *block_size_obj = NULL;
+#ifdef PY3
+	m = PyModule_Create(&module_def);
+#else
 	m = Py_InitModule("_diff_tree", py_diff_tree_methods);
+#endif
 	if (!m)
 		goto error;
 
@@ -442,7 +476,11 @@ init_diff_tree(void)
 	}
 
 	Py_DECREF(diff_tree_mod);
+#ifdef PY3
+	return m;
+#else
 	return;
+#endif
 
 error:
 	Py_XDECREF(objects_mod);
@@ -451,5 +489,5 @@ error:
 	Py_XDECREF(block_size_obj);
 	Py_XDECREF(defaultdict_cls);
 	Py_XDECREF(int_cls);
-	return;
+	RETURN_ERR;
 }
